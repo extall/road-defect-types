@@ -10,6 +10,7 @@ import rasterio
 import geopandas as gpd
 from shapely.geometry import Polygon
 import pickle
+from tqdm import tqdm
 
 # This script is used to build a database of ALL defect types found on a particular road segment
 # It should be run on a particular machine that shall handle the task of defect type preprocessing for ML
@@ -70,8 +71,7 @@ for d in shpdirs:
     vrts = os.listdir(im_dirs_root + os.path.sep + d)
     vrts = [vrt for vrt in vrts if vrt.endswith(".vrt")]  # Only VRT files
 
-    for f in vrts:
-        print("Processing file " + f)
+    for f in tqdm(vrts):
 
         f_ind = f.replace(".vrt", "")
 
@@ -79,6 +79,8 @@ for d in shpdirs:
         rvrt = rasterio.open(os.path.join(im_dirs_root + os.path.sep + d, f))
 
         # CRS check. Perhaps useful if someone is going to use it in the future
+        # TODO: This stopped working for some reason. Maybe it has to do with rasterio/GDAL bug. To be investigated
+        # Indeed, Spyder is launched from CMD after properly switching the conda env, everything works as expected
         if rvrt.crs.data["init"] != shp.crs["init"]:
             raise Exception("CRS is different, need reprojection, script not designed to handle this situation.")
 
