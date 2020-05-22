@@ -32,3 +32,7 @@ print("CRS the same?", "Yes" if rast_crs == shp_crs else "No, need reprojection"
 
 # Bounds of the projected image
 rast_bnd = raster_vrt.bounds
+
+# Need to construct a polygon from this
+bl, bb, br, bt = rast_bnd.left, rast_bnd.bottom, rast_bnd.right, rast_bnd.top
+ibpoly = Polygon([(bl, bb), (bl, bt), (br, bt), (br, bb)])

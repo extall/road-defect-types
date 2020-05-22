@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - https://repo.continuum.io/pkgs/main/win-64/
 dependencies:
+  - addict=2.2.1=py36_0
   - affine=2.3.0=py_0
   - alabaster=0.7.12=py_0
   - astroid=2.4.0=py36_0
@@ -28,6 +29,7 @@ dependencies:
   - cycler=0.10.0=py36h009560c_0
   - decorator=4.4.2=py_0
   - defusedxml=0.6.0=py_0
+  - descartes=1.1.0=py_4
   - docutils=0.16=py36_0
   - entrypoints=0.3=py36_0
   - expat=2.2.5=he025d50_0
@@ -175,8 +177,10 @@ dependencies:
   - tk=8.6.8=hfa6e2cd_0
   - toml=0.10.0=pyh91ea838_0
   - tornado=6.0.4=py36he774522_1
+  - tqdm=4.46.0=py_0
   - traitlets=4.3.3=py36_0
   - typed-ast=1.4.1=py36he774522_0
+  - unidecode=1.1.1=py_0
   - urllib3=1.25.8=py36_0
   - vc=14.1=h0510ff6_4
   - vs2015_runtime=14.16.27012=hf0eaf9b_1
