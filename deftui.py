@@ -103,6 +103,10 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.btnBrowseDefectDb.clicked.connect(self.browse_defects_db)
         self.btnBrowseImgRoot.clicked.connect(self.browse_image_root_folder)
 
+        # Changes in lists (new selections)
+        self.listFilterDirs.currentTextChanged.connect(self.show_filtered_files)
+        self.listFilterDefects.currentTextChanged.connect(self.show_filtered_files)
+
     # Helper for QMessageBox
     @staticmethod
     def show_info_box(title, text):
@@ -233,6 +237,10 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
 
     def show_filtered_files(self):
 
+        if self.db is None:
+            self.log("Cannot filter the files: no database loaded")
+            return
+
         # Get the conditions
         filter_cols = {}
         filt_dir = str(self.listFilterDirs.currentText())
@@ -253,7 +261,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.listImages.clear()
         self.listImages.addItems(unique_files)
 
-    def update_images(self):
+    def update_image(self):
         pass
 
 
