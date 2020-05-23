@@ -9,6 +9,8 @@ import numpy as np
 from pathlib import Path
 import pickle
 import copy
+import geopandas as gpd
+import numpy as np
 
 import matplotlib
 matplotlib.use("Qt5Agg")
@@ -24,7 +26,8 @@ from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtWidgets import QGraphicsView
 from PyQt5.QtWidgets import QSplashScreen, QMessageBox, QGraphicsScene, QFileDialog
 
-# The library
+# The libraries
+from lib import process_db
 from ui import deftui_ui
 
 # Overall constants
@@ -49,7 +52,9 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
     db_loaded = False  # Whether the database was loaded or not
     images_dir_selected = False  # Whether the images dir was selected
 
-    db = None
+    raw_db = None  # Perhaps to be redone in the future. The original DB format is redundant
+    db = None  # This holds the dataframe
+    stats = None
     img_list = None
 
     # Embedded pyplot graph
@@ -163,9 +168,10 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         fn = QtWidgets.QFileDialog.getOpenFileName(self, "Load database file", "", "Pickled database file (*.pkl)")
 
         if fn[0] != "":
+            self.log("Loading the defect database...")
             with open(fn[0], "rb") as f:
                 my_db = pickle.load(f)
-            self.db = my_db
+            self.raw_db = my_db
             self.log("Loaded database file from " + fn[0])
             self.txtDefectFileLoc.setText(fn[0])
             self.update_db()
@@ -178,7 +184,74 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
 
     # TODO: Implement this
     def update_db(self):
-        pass
+        self.log("Processing the database...")
+
+        # Create the dataframe
+        self.db = process_db.create_defect_geodataframe(self.raw_db)
+
+        # Statistics
+        unique_defects = self.db["defect_type"].unique().tolist()
+        stats = {}
+        for deft in unique_defects:
+            stats[deft] = self.db[self.db["defect_type"] == deft].shape[0]
+
+        # Store the statistics
+        self.stats = stats
+
+        # Populate the lists
+        self.update_lists()
+
+        self.log("Finished processing the database")
+        self.print_stats()
+
+    def print_stats(self):
+        self.log("Defect type statistics for this dataset:")
+        for deft, amt in self.stats.items():
+            self.log(deft + ": " + str(amt))
+
+    def update_lists(self):
+
+        if self.db is not None:
+
+            # Get all unique defects
+            unique_defects = self.db["defect_type"].unique().tolist()
+
+            # Get all unique directories
+            unique_dirs = self.db["origin"].unique().tolist()
+
+            # Update all the lists
+            self.listFilterDirs.clear()
+            self.listFilterDirs.addItem("All")
+            self.listFilterDirs.addItems(unique_dirs)
+
+            self.listFilterDefects.clear()
+            self.listFilterDefects.addItem("All")
+            self.listFilterDefects.addItems(unique_defects)
+
+            # Run the filter
+            self.show_filtered_files()
+
+    def show_filtered_files(self):
+
+        # Get the conditions
+        filter_cols = {}
+        filt_dir = str(self.listFilterDirs.currentText())
+        filt_def = str(self.listFilterDefects.currentText())
+
+        if filt_dir != "All":
+            filter_cols["origin"] = filt_dir
+
+        if filt_def != "All":
+            filter_cols["defect_type"] = filt_def
+
+        filt_db = self.db[np.logical_and.reduce([(self.db[k] == v) for k, v in filter_cols.items()])] \
+            if filter_cols else self.db
+
+        # All unique filenames from filtered database
+        unique_files = filt_db["fn"].unique().tolist()
+
+        self.listImages.clear()
+        self.listImages.addItems(unique_files)
 
     def update_images(self):
         pass
