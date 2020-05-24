@@ -184,18 +184,6 @@
       </layout>
      </widget>
     </item>
-    <item>
-     <widget class="QGroupBox" name="groupBox_3">
-      <property name="title">
-       <string>Preview</string>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <layout class="QVBoxLayout" name="layoutPreview"/>
-       </item>
-      </layout>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -216,6 +204,7 @@
     <property name="title">
      <string>View</string>
     </property>
+    <addaction name="actionPreview_window"/>
     <addaction name="actionReload_image"/>
    </widget>
    <widget class="QMenu" name="menuFile">
@@ -236,6 +225,17 @@
   <action name="actionReload_image">
    <property name="text">
     <string>Reload image</string>
+   </property>
+  </action>
+  <action name="actionPreview_window">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Preview window</string>
    </property>
   </action>
  </widget>

@@ -28,7 +28,7 @@ from PyQt5.QtWidgets import QSplashScreen, QMessageBox, QGraphicsScene, QFileDia
 
 # The libraries
 from lib import process_db
-from ui import deftui_ui
+from ui import deftui_ui, deftui_imgpreview_ui
 
 # Overall constants
 PUBLISHER = "AlphaControlLab"
@@ -38,6 +38,59 @@ APP_VERSION = "0.1-alpha"
 # Some additional ones
 CONFIG_DIR_NAME = "configs"
 OUTPUT_DIR_NAME = "results"
+
+
+# The Image Preview window class
+class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePreview):
+
+    # Figure on the left
+    figure_view_L = None
+    canvas_view_L = None
+    toolbar_view_L = None
+    axes_view_L = None
+
+    # And the figure on the right
+    figure_view_R = None
+    canvas_view_R = None
+    toolbar_view_R = None
+    axes_view_R = None
+
+    def __init__(self, parent=None):
+
+        self.initializing = True
+        super(DeftImgPreviewUI, self).__init__(parent)
+        self.setupUi(self)
+
+        self.figure_view_L = Figure()
+        self.canvas_view_L = FigureCanvas(self.figure_view_L)
+        self.toolbar_view_L = NavigationToolbar(self.canvas_view_L, self)
+        self.layoutFigLeft.addWidget(self.toolbar_view_L)
+        self.layoutFigLeft.addWidget(self.canvas_view_L)
+
+        self.axes_view_L = self.figure_view_L.add_subplot(111)
+
+        # Same for right panel
+        self.figure_view_R = Figure()
+        self.canvas_view_R = FigureCanvas(self.figure_view_R)
+        self.toolbar_view_R = NavigationToolbar(self.canvas_view_R, self)
+        self.layoutFigRight.addWidget(self.toolbar_view_R)
+        self.layoutFigRight.addWidget(self.canvas_view_R)
+        self.axes_view_R = self.figure_view_R.add_subplot(111)
+
+        self.initializing = False
+
+    def do_plot(self):
+
+        x = [1,2,3]
+        vals = [10, 30, 40]
+
+        self.axes_view_L.plot(x, vals, color="blue", zorder=1)
+        self.axes_view_L.scatter(x, vals, color="red", zorder=2)
+
+        self.canvas_view_L.draw()
+
+    def closeEvent(self, event):
+        self.parent().handle_preview_close()
 
 
 # Main UI class with all methods
@@ -57,11 +110,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
     stats = None
     img_list = None
 
-    # Embedded pyplot graph
-    figure_view = None
-    canvas_view = None
-    toolbar_view = None
-    axes_view = None
+    img_preview_window = None
 
     def __init__(self, parent=None):
 
@@ -71,29 +120,28 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         super(DeftUI, self).__init__(parent)
         self.setupUi(self)
 
-        # Add the FigureCanvas
-        self.figure_view = Figure()
-        self.canvas_view = FigureCanvas(self.figure_view)
-        self.toolbar_view = NavigationToolbar(self.canvas_view, self)
-        self.layoutPreview.addWidget(self.toolbar_view)
-        self.layoutPreview.addWidget(self.canvas_view)
-
-        # Add axes
-        self.axes_view = self.figure_view.add_subplot(111)
-
-        # Do plot
-        self.do_plot()
-
         # Set up the status bar
         self.status_bar_message("ready")
 
-    def do_plot(self):
+    # Add preview window separately
+    def add_preview_window(self):
+        self.img_preview_window = DeftImgPreviewUI(self)
+        self.img_preview_window.show()
 
-        x = [1,2,3]
-        vals = [10, 30, 40]
+    # Handle closing of the preview window
+    def handle_preview_close(self):
+        self.actionPreview_window.setChecked(False)
+        self.img_preview_window = None
 
-        self.axes_view.plot(x, vals, color="blue", zorder=1)
-        self.axes_view.scatter(x, vals, color="red", zorder=2)
+    # Handle preview window toggle
+    def handle_preview_toggle(self):
+        if not self.actionPreview_window.isChecked():
+            # Close the preview window, it will automatically untick the entry
+            self.img_preview_window.close()
+            self.img_preview_window = None
+        else:
+            self.actionPreview_window.setChecked(True)
+            self.add_preview_window()
 
     # Set up those UI elements that depend on config
     def config_ui(self):
@@ -106,6 +154,11 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         # Changes in lists (new selections)
         self.listFilterDirs.currentTextChanged.connect(self.show_filtered_files)
         self.listFilterDefects.currentTextChanged.connect(self.show_filtered_files)
+
+        self.actionPreview_window.triggered.connect(self.handle_preview_toggle)
+
+        # TODO: temp actions
+        self.actionReload_image.triggered.connect(self.img_preview_window.do_plot)
 
     # Helper for QMessageBox
     @staticmethod
@@ -273,6 +326,9 @@ def main():
     dialog.setWindowTitle(APP_TITLE + " - v." + APP_VERSION) # Window title
     dialog.app = app  # Store the reference
     dialog.show()
+
+    # Add the preview window
+    dialog.add_preview_window()
 
     # After loading the config file, we need to set up relevant UI elements
     dialog.config_ui()
