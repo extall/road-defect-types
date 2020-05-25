@@ -10,8 +10,9 @@ from pathlib import Path
 import pickle
 import copy
 import geopandas as gpd
+import cv2
 import numpy as np
-
+from PIL import Image
 import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
@@ -47,10 +48,12 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
     # Generated using https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=9
     POLY_COLORS = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6']
 
+    label_color = None
+
     # Figure contents to be plotted
-    figure_left = None
-    figure_left_polys = None  # Will contain a list of polygons to plot over the image
-    figure_right = None
+    img_left = None
+    img_left_polys = None  # Will contain a list of polygons to plot over the image
+    img_right = None
 
     # Figure on the left
     figure_view_L = None
@@ -87,10 +90,38 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         self.axes_view_R = self.figure_view_R.add_subplot(111)
 
         ### Let's do some tests TODO: remove
-        
 
         self.initializing = False
 
+    # Using the plot colors, assign them to the labels. Note that N_labels must be <= 9
+    def assign_colors(self, labels):
+        lc = {}
+        for i, l in enumerate(labels):
+            lc[l] = self.POLY_COLORS[i]
+        self.label_color = lc
+
+    # Load an image along with a db_entry describing the defects
+    def load_image(self, path_img, db_entry):
+
+        full_file_path = path_img + os.sep + db_entry["origin"] + os.sep + db_entry["fn"] + ".jpg" # TODO: Potential bug
+        print("I got a file path of", full_file_path)
+
+        img_left = cv2.imread(full_file_path)
+        img_left = cv2.cvtColor(img_left, cv2.COLOR_BGR2RGB)
+
+        self.axes_view_L.imshow(img_left)
+        self.canvas_view_L.draw()
+
+        # Wont use mask for now, though given the path and image we can easily do it
+        try:
+            # Load the JPG file
+            pass
+
+        except:
+            print("Cannot read file.")
+            return
+
+    # TODO: debug
     def do_plot(self):
 
         x = [1,2,3]
@@ -161,6 +192,36 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
             self.actionPreview_window.setChecked(True)
             self.add_preview_window()
 
+    # Test plot
+    def test_plot(self):
+        root_path = str(self.txtImageRootDir.text())
+        fn = str(self.listImages.currentText())
+        db_entry = self.get_file_entry(fn)
+        self.img_preview_window.load_image(root_path, db_entry)
+
+    # Group defects for this file in a compact form
+    def get_file_entry(self, fn):
+
+        if self.db is None:
+            print("Database is not loaded")
+
+        db_entry = {}
+        defects = []
+
+        entries = self.db[self.db["fn"] == fn]
+
+        if entries.empty:
+            print("No entries for this file")
+            return
+
+        for i, entry in entries.iterrows():
+            db_entry["fn"] = fn  # Redundant, need TODO
+            db_entry["origin"] = entry["origin"] # something about this
+            defects.append((entry["defect_type"], entry["geometry"]))
+
+        db_entry["defects"] = defects
+        return db_entry
+
     # Set up those UI elements that depend on config
     def config_ui(self):
 
@@ -176,7 +237,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.actionPreview_window.triggered.connect(self.handle_preview_toggle)
 
         # TODO: temp actions
-        self.actionReload_image.triggered.connect(self.img_preview_window.do_plot)
+        self.actionReload_image.triggered.connect(self.test_plot)
 
     # Helper for QMessageBox
     @staticmethod
@@ -255,7 +316,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Choose images root directory")
         if dir:
             self.txtImageRootDir.setText(self.fix_path(dir))
-            self.update_images()
+            self.update_image()
 
     # TODO: Implement this
     def update_db(self):
