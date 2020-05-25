@@ -43,6 +43,15 @@ OUTPUT_DIR_NAME = "results"
 # The Image Preview window class
 class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePreview):
 
+    # Different data color scheme
+    # Generated using https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=9
+    POLY_COLORS = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6']
+
+    # Figure contents to be plotted
+    figure_left = None
+    figure_left_polys = None  # Will contain a list of polygons to plot over the image
+    figure_right = None
+
     # Figure on the left
     figure_view_L = None
     canvas_view_L = None
@@ -77,6 +86,9 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         self.layoutFigRight.addWidget(self.canvas_view_R)
         self.axes_view_R = self.figure_view_R.add_subplot(111)
 
+        ### Let's do some tests TODO: remove
+        
+
         self.initializing = False
 
     def do_plot(self):
@@ -95,6 +107,12 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
 
 # Main UI class with all methods
 class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
+
+    # Current file name (the one selected in the orthoframe combobox)
+    # NB! This is not generally updated, but currently used only to point
+    # to a filename for filtering operations: we need not reload the same image, if after filtering
+    # the file list the first entry points to the same file
+    current_fn = None
 
     # Applications states in status bar
     APP_STATUS_STATES = {"ready": "Ready.",
@@ -288,7 +306,21 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
             # Run the filter
             self.show_filtered_files()
 
+    def handle_file_onchange(self, evstate):
+
+        # Depending on evstate, either attach or detach filename changed handling
+        if evstate:
+            self.listImages.currentTextChanged.connect(self.update_image)
+        else:
+            self.listImages.disconnect()
+
     def show_filtered_files(self):
+
+        # Remember current file name
+        self.current_fn = str(self.listImages.currentText())
+
+        # Detach filename onchange event
+        self.handle_file_onchange(False)
 
         if self.db is None:
             self.log("Cannot filter the files: no database loaded")
@@ -314,7 +346,15 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.listImages.clear()
         self.listImages.addItems(unique_files)
 
+        # Reattach filename onchange
+        self.handle_file_onchange(True)
+
+        # Check if we need to update the image
+        if str(self.listImages.currentText()) != self.current_fn:
+            self.update_image()
+
     def update_image(self):
+        print("had to update image here but no.")
         pass
 
 
