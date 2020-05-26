@@ -12,7 +12,6 @@ import copy
 import geopandas as gpd
 import cv2
 import numpy as np
-from PIL import Image
 import matplotlib
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt

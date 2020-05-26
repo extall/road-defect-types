@@ -87,6 +87,7 @@ for d in shpdirs:
         # Bounds of the orthoframe
         rbnd = rvrt.bounds
         bl, bb, br, bt = rbnd.left, rbnd.bottom, rbnd.right, rbnd.top
+        extent = [bl, br, bb, bt]  # Extent of image
         ibpoly = Polygon([(bl, bb), (bl, bt), (br, bt), (br, bb)])
         rvrt.close()
 
@@ -113,7 +114,7 @@ for d in shpdirs:
         shp.drop(drop_ind)
 
         # Store defect shape info for the file
-        myfiles[f_ind] = geom_list
+        myfiles[f_ind] = (geom_list, extent)
 
     # Store the entry
     defect_db[d] = {"stats": mystats, "files": myfiles}
