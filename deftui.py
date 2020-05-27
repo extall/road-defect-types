@@ -60,7 +60,6 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
 
     # Figure contents to be plotted
     img_left = None
-    img_left_polys = None  # Will contain a list of polygons to plot over the image
     img_right = None
     img_right_boxes = None  # Will contain a list of cropped images with defect contents
 
@@ -121,8 +120,13 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
             lc[l] = self.POLY_COLORS[i]
         self.label_color = lc
 
-    def onpick_patch(self):
-        print("Picked patch")
+    def onpick_patch(self, event):
+        if self.img_right_boxes is not None:
+            self.clear_axes(self.axes_view_R)
+            patch_id = event.artist.patch_id
+            self.axes_view_R.imshow(self.img_right_boxes[patch_id])
+            self.canvas_view_R.draw()
+
 
     # Load an image along with a db_entry describing the defects
     def load_image(self, path_img, db_entry):
@@ -138,18 +142,22 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         # Now let's have the shapes mate. Thanks to the descartes package we can draw them up pretty quickly.
         # One thing though... we also need to map the bounding boxes of them
         patches = []
-        segments = []
+        segments = {}
         ind = 0
         for defect in db_entry["defects"]:
-            segments.append(self.orthoframe.bounds_crop_img(defect[1].bounds))
-            patches.append(PolygonPatch(defect[1], fc=self.label_color[defect[0]],
-                                        alpha=0.4, zorder=1, picker=True))
+            segments[ind] = self.orthoframe.bounds_crop_img(defect[1].bounds)
+            patch = PolygonPatch(defect[1], fc=self.label_color[defect[0]],
+                         alpha=0.4, zorder=1, picker=True)
+            patch.patch_id = ind
+            # patches.append(patch)
+            self.axes_view_L.add_patch(patch)
             ind += 1
 
-        self.axes_view_L.add_collection(PatchCollection(patches, match_original=True))
+        # self.axes_view_L.add_collection(PatchCollection(patches, match_original=True, picker=True))
         self.canvas_view_L.draw()
         self.canvas_view_L.mpl_connect('pick_event', self.onpick_patch)
 
+        self.img_right_boxes = segments
         #
         #
         # END DEBUG

@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 import os
+from matplotlib import patches
 
 # We assume the ext is ".jpg"
 ORTHOFRAME_RASTER_EXT = ".jpg"  # TODO: Potential bug here. Need to make sure we search for the file instead
@@ -50,4 +51,15 @@ class Orthoframe:
 
     def bounds_crop_img(self, geopatch):
         x1, x2, y1, y2 = self.bounds_transform_from_geo_coordinates(geopatch)
-        return self.img_content[x1:x2 if x1<x2 else x2:x1, y1:y2 if y1<y2 else y2:y1, :]
+        print(x1, x2, y1, y2)
+
+        # Make sure ranges are adequate
+        if y1 > y2:
+            y1, y2 = y2, y1
+
+        if x1 > x2:
+            x1, x2 = x2, x1
+
+        piece = self.img_content[y1:y2, x1:x2, ...]
+        print(piece.shape)
+        return piece
