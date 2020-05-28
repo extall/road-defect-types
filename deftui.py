@@ -14,6 +14,7 @@ import cv2
 import configparser
 import numpy as np
 import matplotlib
+import inspect
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
@@ -99,6 +100,16 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         self.axes_view_R = self.figure_view_R.add_subplot(111)
         self.clear_axes(self.axes_view_R)
         self.display_nothing(self.axes_view_R)
+        self.axes_view_R.set_xticks([])
+        self.axes_view_R.set_yticks([])
+
+        self.canvas_view_L.mpl_connect('pick_event', self.onpick_patch)
+
+        self.setWindowTitle("Preview window")
+
+        # Buttons to communicate with main UI
+        self.btnNextImage.clicked.connect(self.parent().handle_next_image_req)
+        self.btnPrevImage.clicked.connect(self.parent().handle_prev_image_req)
 
         self.initializing = False
 
@@ -106,12 +117,14 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
     @staticmethod
     def clear_axes(wa):
         wa.clear()
+        wa.figure.canvas.draw()
 
     @staticmethod
     def display_nothing(wa):
         wa.text(-0.4, 0, "Nothing to show")
         wa.set_xlim(-1, 1)
         wa.set_ylim(-1, 1)
+        wa.figure.canvas.draw()
 
     # Using the plot colors, assign them to the labels. Note that N_labels must be <= 9
     def assign_colors(self, labels):
@@ -124,63 +137,47 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         if self.img_right_boxes is not None:
             self.clear_axes(self.axes_view_R)
             patch_id = event.artist.patch_id
-            self.axes_view_R.imshow(self.img_right_boxes[patch_id])
+            self.axes_view_R.imshow(self.img_right_boxes[patch_id][1])
+            self.axes_view_R.set_xticks([])
+            self.axes_view_R.set_yticks([])
+            self.axes_view_R.set_title("Defect type: " + self.img_right_boxes[patch_id][0])
             self.canvas_view_R.draw()
-
 
     # Load an image along with a db_entry describing the defects
     def load_image(self, path_img, db_entry):
 
-        # TODO: This, for now, is something we use to debug the thing
-        #
-
-        self.orthoframe = Orthoframe(path_img + os.sep + db_entry["origin"], db_entry["fn"], db_entry["extent"])
-
-        self.clear_axes(self.axes_view_L)
-        self.axes_view_L.imshow(self.orthoframe.img_content, extent=self.orthoframe.geo_extent)
-
-        # Now let's have the shapes mate. Thanks to the descartes package we can draw them up pretty quickly.
-        # One thing though... we also need to map the bounding boxes of them
-        patches = []
-        segments = {}
-        ind = 0
-        for defect in db_entry["defects"]:
-            segments[ind] = self.orthoframe.bounds_crop_img(defect[1].bounds)
-            patch = PolygonPatch(defect[1], fc=self.label_color[defect[0]],
-                         alpha=0.4, zorder=1, picker=True)
-            patch.patch_id = ind
-            # patches.append(patch)
-            self.axes_view_L.add_patch(patch)
-            ind += 1
-
-        # self.axes_view_L.add_collection(PatchCollection(patches, match_original=True, picker=True))
-        self.canvas_view_L.draw()
-        self.canvas_view_L.mpl_connect('pick_event', self.onpick_patch)
-
-        self.img_right_boxes = segments
-        #
-        #
-        # END DEBUG
-
         # Wont use mask for now, though given the path and image we can easily do it
         try:
-            # Load the JPG file
-            pass
+            self.setWindowTitle("Preview: " + db_entry["fn"])
 
-        except:
-            print("Cannot read file.")
+            self.orthoframe = Orthoframe(path_img + os.sep + db_entry["origin"], db_entry["fn"], db_entry["extent"])
+
+            self.clear_axes(self.axes_view_L)
+            self.clear_axes(self.axes_view_R)
+            self.display_nothing(self.axes_view_R)
+            self.axes_view_R.set_xticks([])
+            self.axes_view_R.set_yticks([])
+            self.canvas_view_R.draw()
+
+            self.axes_view_L.imshow(self.orthoframe.img_content, extent=self.orthoframe.geo_extent)
+
+            # Now let's have the shapes mate. Thanks to the descartes package we can draw them up pretty quickly.
+            segments = {}
+            ind = 0
+            for defect in db_entry["defects"]:
+                segments[ind] = (defect[0], self.orthoframe.bounds_crop_img(defect[1].bounds), defect[1])
+                patch = PolygonPatch(defect[1], ec='#ff0000', fc=self.label_color[defect[0]],
+                                     alpha=0.4, zorder=1, picker=True)
+                patch.patch_id = ind
+                self.axes_view_L.add_patch(patch)
+                ind += 1
+
+            self.canvas_view_L.draw()
+            self.img_right_boxes = segments
+
+        except Exception as err:
+            print("An error occured while trying to construct the preview figure: " + str(err))
             return
-
-    # TODO: debug
-    def do_plot(self):
-
-        x = [1,2,3]
-        vals = [10, 30, 40]
-
-        self.axes_view_L.plot(x, vals, color="blue", zorder=1)
-        self.axes_view_L.scatter(x, vals, color="red", zorder=2)
-
-        self.canvas_view_L.draw()
 
     def closeEvent(self, event):
         self.parent().handle_preview_close()
@@ -243,6 +240,21 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.actionPreview_window.setChecked(False)
         self.img_preview_window = None
 
+    # Handlers from next/prev image requests
+    def handle_next_image_req(self):
+        count = self.listImages.count()
+        # Already at the last image
+        if self.listImages.currentIndex() + 1 >= count:
+            return
+
+        # Increase index
+        self.listImages.setCurrentIndex(self.listImages.currentIndex()+1)
+
+    def handle_prev_image_req(self):
+        if self.listImages.currentIndex() == 0:
+            return
+        self.listImages.setCurrentIndex(self.listImages.currentIndex()-1)
+
     # Handle preview window toggle
     def handle_preview_toggle(self):
         if not self.actionPreview_window.isChecked():
@@ -252,13 +264,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         else:
             self.actionPreview_window.setChecked(True)
             self.add_preview_window()
-
-    # Test plot
-    def test_plot(self):
-        root_path = str(self.txtImageRootDir.text())
-        fn = str(self.listImages.currentText())
-        db_entry = self.get_file_entry(fn)
-        self.img_preview_window.load_image(root_path, db_entry)
+            self.update_image()
 
     # Group defects for this file in a compact form
     def get_file_entry(self, fn):
@@ -274,12 +280,16 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         # Filter out the defect of interest
         filt_def = str(self.listFilterDefects.currentText())
 
+        # ... if the following option is enabled
+        show_only_this = self.chkShowOnlyWithSelectedDefect.isChecked()
+
         if entries.empty:
             print("No entries for this file")
             return
 
         for i, entry in entries.iterrows():
-            if filt_def == "All" or filt_def == entry["defect_type"]:
+            if filt_def == "All" or (filt_def == entry["defect_type"] \
+                                     and show_only_this) or not show_only_this:
                 db_entry["fn"] = fn  # Redundant, need TODO
                 db_entry["origin"] = entry["origin"] # something about this
                 db_entry["extent"] = entry["extent"]
@@ -300,10 +310,13 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.listFilterDirs.currentTextChanged.connect(self.show_filtered_files)
         self.listFilterDefects.currentTextChanged.connect(self.show_filtered_files)
 
-        self.actionPreview_window.triggered.connect(self.handle_preview_toggle)
+        # Change of filter state
+        self.chkShowOnlyWithSelectedDefect.stateChanged.connect(self.update_image)
 
-        # TODO: temp actions
-        self.actionReload_image.triggered.connect(self.test_plot)
+        # Menu actions
+        self.actionPreview_window.triggered.connect(self.handle_preview_toggle)
+        self.actionReload_image.triggered.connect(self.update_image)
+        self.actionCreateMaskFromDefShapes.triggered.connect(self.create_mask_from_shapes)
 
     # Helper for QMessageBox
     @staticmethod
@@ -383,7 +396,6 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
             self.config_save()
             self.update_image()
 
-    # TODO: Implement this
     def update_db(self):
 
         db_file = self.config_data["MenuOptions"]["DefectDbFile"]
@@ -410,9 +422,6 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
 
         # Populate the lists
         self.update_lists()
-
-        # Update image
-        self.update_image()
 
         self.log("Finished processing the database")
         self.print_stats()
@@ -450,7 +459,8 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         if evstate:
             self.listImages.currentTextChanged.connect(self.update_image)
         else:
-            self.listImages.disconnect()
+            try: self.listImages.disconnect()
+            except: pass
 
     def show_filtered_files(self):
 
@@ -487,14 +497,47 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         # Reattach filename onchange
         self.handle_file_onchange(True)
 
-        # Check if we need to update the image
+        # Check if we need to update the image: this will run on initialization
         if str(self.listImages.currentText()) != self.current_fn:
             self.update_image()
 
     # Run this method whenever the preview window is accessed for whatever purpose
     def update_image(self):
         if self.img_preview_window is not None and self.stats is not None:
+
+            # Assign colors to various defects
             self.img_preview_window.assign_colors(self.stats.keys())
+
+            # Proceed with plotting the image
+            root_path = str(self.txtImageRootDir.text())
+            fn = str(self.listImages.currentText())
+            db_entry = self.get_file_entry(fn)
+            self.img_preview_window.load_image(root_path, db_entry)
+
+    # Create mask based on the defect info
+    def create_mask_from_shapes(self):
+
+        # For now this is mostly for debug. But later this will be used to implement the
+        # defect type mask creation for the
+
+        # Current file information
+
+        root_path = str(self.txtImageRootDir.text())
+        fn = str(self.listImages.currentText())
+        entry = self.get_file_entry(fn)
+
+        # Load image mask to figure out image size
+        img_mask = cv2.imread(root_path + os.sep + entry["origin"] + os.sep + fn + ".mask.png", cv2.IMREAD_GRAYSCALE)
+        h,w = img_mask.shape
+
+        # Create empty mask
+        new_mask = np.zeros((h,w), dtype='uint8')
+
+
+
+        h = plt.figure(0)
+        plt.imshow(new_mask)
+
 
     # Everything related to configuration
     def config_load(self):

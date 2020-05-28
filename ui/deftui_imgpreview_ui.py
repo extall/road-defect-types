@@ -24,6 +24,12 @@ class Ui_frmImagePreview(object):
         self.layoutFigRight = QtWidgets.QVBoxLayout()
         self.layoutFigRight.setObjectName("layoutFigRight")
         self.gridLayout.addLayout(self.layoutFigRight, 0, 2, 1, 1)
+        self.btnPrevImage = QtWidgets.QPushButton(self.centralwidget)
+        self.btnPrevImage.setObjectName("btnPrevImage")
+        self.gridLayout.addWidget(self.btnPrevImage, 1, 1, 1, 1)
+        self.btnNextImage = QtWidgets.QPushButton(self.centralwidget)
+        self.btnNextImage.setObjectName("btnNextImage")
+        self.gridLayout.addWidget(self.btnNextImage, 1, 2, 1, 1)
         self.verticalLayout.addLayout(self.gridLayout)
         frmImagePreview.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(frmImagePreview)
@@ -40,4 +46,6 @@ class Ui_frmImagePreview(object):
     def retranslateUi(self, frmImagePreview):
         _translate = QtCore.QCoreApplication.translate
         frmImagePreview.setWindowTitle(_translate("frmImagePreview", "MainWindow"))
+        self.btnPrevImage.setText(_translate("frmImagePreview", "Previous image"))
+        self.btnNextImage.setText(_translate("frmImagePreview", "Next image"))
 

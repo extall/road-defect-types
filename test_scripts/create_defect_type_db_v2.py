@@ -157,7 +157,10 @@ for d in shpdirs:
                 inc_dict(mystats, defect_type)
 
         # To speed things up, drop the shapefiles found on this dataframe
-        shp.drop(drop_ind)
+        # shp.drop(drop_ind)
+        # TODO: the above line will not work, and should not be used anyway, since
+        # sometimes defects can appear across several images, but only on certain
+        # ones they will be correctly aligned with the actual defect on the pavement.
 
         # Store defect shape info for the file
         myfiles[f_ind] = (geom_list, extent)

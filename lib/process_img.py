@@ -51,7 +51,6 @@ class Orthoframe:
 
     def bounds_crop_img(self, geopatch):
         x1, x2, y1, y2 = self.bounds_transform_from_geo_coordinates(geopatch)
-        print(x1, x2, y1, y2)
 
         # Make sure ranges are adequate
         if y1 > y2:
@@ -60,6 +59,4 @@ class Orthoframe:
         if x1 > x2:
             x1, x2 = x2, x1
 
-        piece = self.img_content[y1:y2, x1:x2, ...]
-        print(piece.shape)
-        return piece
+        return self.img_content[y1:y2, x1:x2, ...]

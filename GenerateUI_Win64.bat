@@ -1,7 +1,7 @@
 @echo off
 
-REM SET pyuicpath="C:\Anaconda\Library\bin\pyuic5"
-SET pyuicpath="C:\Users\Alex\.conda\envs\road-defect-types\Library\bin\pyuic5"
+SET pyuicpath="C:\Anaconda\Library\bin\pyuic5"
+REM SET pyuicpath="C:\Users\Alex\.conda\envs\road-defect-types\Library\bin\pyuic5"
 
 echo Running pyuic5...
 
