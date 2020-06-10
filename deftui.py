@@ -64,6 +64,10 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
     img_right = None
     img_right_boxes = None  # Will contain a list of cropped images with defect contents
 
+    # Current patch ID
+    current_patch_id = None
+    current_patch = None
+
     # Figure on the left
     figure_view_L = None
     canvas_view_L = None
@@ -75,6 +79,16 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
     canvas_view_R = None
     toolbar_view_R = None
     axes_view_R = None
+
+    tune_param = {
+        "CannyLow": 0,
+        "CannyHigh": 255,
+        "ThrLow": 0,
+        "ThrHigh": 255,
+        "AdaThrMax": 255,
+        "AdaThrBlockSize": 1,
+        "AdaThrC": 0
+    }
 
     def __init__(self, parent=None):
 
@@ -137,11 +151,150 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         if self.img_right_boxes is not None:
             self.clear_axes(self.axes_view_R)
             patch_id = event.artist.patch_id
-            self.axes_view_R.imshow(self.img_right_boxes[patch_id][1])
-            self.axes_view_R.set_xticks([])
-            self.axes_view_R.set_yticks([])
-            self.axes_view_R.set_title("Defect type: " + self.img_right_boxes[patch_id][0])
-            self.canvas_view_R.draw()
+
+            # Store the patch ID for possible future use
+            self.current_patch_id = patch_id
+            self.current_patch = self.img_right_boxes[self.current_patch_id][1]
+
+            # Show the patch
+            self.show_patch()
+
+    # Show a patch specified by current_patch_id
+    def show_patch(self):
+
+        # Preprocess the patch before display
+        img = self.preprocess_patch(self.current_patch)
+
+        # Actually show the patch
+        self.axes_view_R.imshow(img)
+        self.toolbar_view_R.update()
+        self.axes_view_R.set_xticks([])
+        self.axes_view_R.set_yticks([])
+        self.axes_view_R.set_title("Defect type: " + self.img_right_boxes[self.current_patch_id][0])
+        self.canvas_view_R.draw()
+
+        # Open processing windows, if needed
+        self.open_proc_windows()
+
+    # Preprocess patch: apply the selected filters/edge detection etc on it
+    def preprocess_patch(self, img1):
+
+        # Operate on the copy of the original patch
+        img = img1.copy()
+
+        # Need two images
+        need_two_images = False
+
+        # Check the enabled operations
+        if self.actionApply_Canny.isChecked():
+            # Process image with Canny
+            p = self.tune_param
+            img = cv2.Canny(img, p["CannyLow"], p["CannyHigh"])
+            need_two_images = True
+
+        # In the end, img must be RGB
+        if len(img.shape) == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+        if need_two_images:
+            img = self.combine_images(img1, img)
+
+        # Return processed image
+        return img
+
+    # Open all proc windows that are needed
+    def open_proc_windows(self):
+        if self.actionApply_Canny.isChecked():
+            self.proc_canny_window()
+
+        if self.actionThreshold.isChecked():
+            self.proc_threshold_window()
+
+        if self.actionAdaptive_threshold.isChecked():
+            self.proc_ada_threshold_window()
+
+    # Create a window to experiment with some parameters
+    def proc_canny_window(self):
+        p = self.tune_param
+        cv2.namedWindow("ProcessCanny", cv2.WINDOW_NORMAL)
+        cv2.imshow("ProcessCanny", self.current_patch)
+        cv2.createTrackbar("Low", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyLow"))
+        cv2.createTrackbar("High", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyHigh"))
+        cv2.setTrackbarPos("Low", "ProcessCanny", p["CannyLow"])
+        cv2.setTrackbarPos("High", "ProcessCanny", p["CannyHigh"])
+
+    def proc_canny_window_callback(self, param):
+        def proc_callback_closure(val):
+            p = self.tune_param
+            p[param] = val
+            img = cv2.Canny(self.current_patch.copy(), p["CannyLow"], p["CannyHigh"])
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            cv2.namedWindow("ProcessCanny", cv2.WINDOW_NORMAL)
+            cv2.imshow("ProcessCanny", img)
+        return proc_callback_closure
+
+    def proc_threshold_window(self):
+        p = self.tune_param
+        cv2.namedWindow("ProcessThreshold", cv2.WINDOW_NORMAL)
+        cv2.imshow("ProcessThreshold", self.current_patch)
+        cv2.createTrackbar("Low", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrLow"))
+        cv2.createTrackbar("High", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrHigh"))
+        cv2.setTrackbarPos("Low", "ProcessThreshold", p["ThrLow"])
+        cv2.setTrackbarPos("High", "ProcessThreshold", p["ThrHigh"])
+
+    def proc_threshold_window_callback(self, param):
+        def proc_callback_closure(val):
+            p = self.tune_param
+            p[param] = val
+            img = cv2.cvtColor(self.current_patch.copy(), cv2.COLOR_RGB2GRAY)
+            th, img = cv2.threshold(img, p["ThrLow"], p["ThrHigh"], cv2.THRESH_BINARY)
+            cv2.namedWindow("ProcessThreshold", cv2.WINDOW_NORMAL)
+            cv2.imshow("ProcessThreshold", img)
+        return proc_callback_closure
+
+    def proc_ada_threshold_window(self):
+        p = self.tune_param
+        cv2.namedWindow("ProcessAdaThreshold", cv2.WINDOW_NORMAL)
+        cv2.imshow("ProcessAdaThreshold", self.current_patch)
+        cv2.createTrackbar("AdaThrMax", "ProcessAdaThreshold", 0, 255, self.proc_ada_threshold_window_callback("AdaThrMax"))
+        cv2.createTrackbar("AdaThrBlockSize", "ProcessAdaThreshold", 1, 100, self.proc_ada_threshold_window_callback("AdaThrBlockSize"))
+        cv2.createTrackbar("AdaThrC", "ProcessAdaThreshold", 0, 255, self.proc_ada_threshold_window_callback("AdaThrC"))
+        cv2.setTrackbarPos("AdaThrMax", "ProcessAdaThreshold", p["AdaThrMax"])
+        cv2.setTrackbarPos("AdaThrBlockSize", "ProcessAdaThreshold", p["AdaThrBlockSize"])
+        cv2.setTrackbarPos("AdaThrC", "ProcessAdaThreshold", p["AdaThrC"])
+
+    def proc_ada_threshold_window_callback(self, param):
+        def proc_callback_closure(val):
+            p = self.tune_param
+            p[param] = val
+            img = cv2.cvtColor(self.current_patch.copy(), cv2.COLOR_RGB2GRAY)
+            blk_size = p["AdaThrBlockSize"]*2+1
+            print(blk_size)
+            img = cv2.adaptiveThreshold(img, p["AdaThrMax"], cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,
+                                            blk_size, p["AdaThrC"])
+            cv2.namedWindow("ProcessAdaThreshold", cv2.WINDOW_NORMAL)
+            cv2.imshow("ProcessAdaThreshold", img)
+        return proc_callback_closure
+
+    # Combine two images in the most efficient way
+    # (horizontally or vertically) so that they can
+    # be easily compared. We assume images have same w/h
+    @staticmethod
+    def combine_images(img, img1):
+        h, w = img.shape[0], img.shape[1]
+        h1, w1 = img1.shape[0], img1.shape[1]
+
+        if h != h1 or w != w1:
+            raise ValueError("Dimensions of the images are not compatible")
+
+        # If we pass the check of images having same dimensions,
+        # we proceed with deciding how to combine them
+        if h > w:  # Stack side-by-side
+            new_img = cv2.hconcat([img, img1])
+        else:  # Top-bottom
+            new_img = cv2.vconcat([img, img1])
+
+        return new_img
 
     # Load an image along with a db_entry describing the defects
     def load_image(self, path_img, db_entry):
@@ -160,6 +313,7 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
             self.canvas_view_R.draw()
 
             self.axes_view_L.imshow(self.orthoframe.img_content, extent=self.orthoframe.geo_extent)
+            self.toolbar_view_L.update()
 
             # Now let's have the shapes mate. Thanks to the descartes package we can draw them up pretty quickly.
             segments = {}

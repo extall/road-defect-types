@@ -50,8 +50,50 @@
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuSegments">
+    <property name="title">
+     <string>Preprocess</string>
+    </property>
+    <addaction name="actionApply_Canny"/>
+    <addaction name="actionThreshold"/>
+    <addaction name="actionAdaptive_threshold"/>
+   </widget>
+   <addaction name="menuSegments"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionApply_Canny">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Canny edge detector</string>
+   </property>
+  </action>
+  <action name="actionThreshold">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Threshold</string>
+   </property>
+  </action>
+  <action name="actionAdaptive_threshold">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Adaptive threshold</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
