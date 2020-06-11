@@ -54,9 +54,18 @@
     <property name="title">
      <string>Preprocess</string>
     </property>
+    <widget class="QMenu" name="menuAdaptive_threshold_2">
+     <property name="title">
+      <string>Adaptive threshold</string>
+     </property>
+     <addaction name="action0_Gaussian_blur"/>
+     <addaction name="actionAdaptive_threshold_3"/>
+     <addaction name="action2_Morphological_opening"/>
+    </widget>
     <addaction name="actionApply_Canny"/>
     <addaction name="actionThreshold"/>
-    <addaction name="actionAdaptive_threshold"/>
+    <addaction name="menuAdaptive_threshold_2"/>
+    <addaction name="actionBlob_detector"/>
    </widget>
    <addaction name="menuSegments"/>
   </widget>
@@ -83,7 +92,18 @@
     <string>Threshold</string>
    </property>
   </action>
-  <action name="actionAdaptive_threshold">
+  <action name="actionApply_morph_opening_after">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Apply morph opening after</string>
+   </property>
+  </action>
+  <action name="actionAdaptive_threshold_3">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -91,7 +111,40 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Adaptive threshold</string>
+    <string>1: Adaptive threshold</string>
+   </property>
+  </action>
+  <action name="action2_Morphological_opening">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>2: Morphological opening</string>
+   </property>
+  </action>
+  <action name="action0_Gaussian_blur">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>0: Gaussian blur</string>
+   </property>
+  </action>
+  <action name="actionBlob_detector">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Blob detector</string>
    </property>
   </action>
  </widget>

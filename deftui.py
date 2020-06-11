@@ -85,7 +85,8 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         "CannyHigh": 255,
         "ThrLow": 0,
         "ThrHigh": 255,
-        "AdaThrMax": 255,
+        "BlurKernSize": 1,
+        "OpenKernSize": 1,
         "AdaThrBlockSize": 1,
         "AdaThrC": 0
     }
@@ -159,6 +160,9 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
             # Show the patch
             self.show_patch()
 
+            # Open processing windows, if needed
+            self.open_proc_windows()
+
     # Show a patch specified by current_patch_id
     def show_patch(self):
 
@@ -172,9 +176,6 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         self.axes_view_R.set_yticks([])
         self.axes_view_R.set_title("Defect type: " + self.img_right_boxes[self.current_patch_id][0])
         self.canvas_view_R.draw()
-
-        # Open processing windows, if needed
-        self.open_proc_windows()
 
     # Preprocess patch: apply the selected filters/edge detection etc on it
     def preprocess_patch(self, img1):
@@ -210,18 +211,21 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         if self.actionThreshold.isChecked():
             self.proc_threshold_window()
 
-        if self.actionAdaptive_threshold.isChecked():
+        if self.actionAdaptive_threshold_3.isChecked():
             self.proc_ada_threshold_window()
+
+        if self.actionBlob_detector.isChecked():
+            self.proc_blob_detector()
 
     # Create a window to experiment with some parameters
     def proc_canny_window(self):
         p = self.tune_param
         cv2.namedWindow("ProcessCanny", cv2.WINDOW_NORMAL)
         cv2.imshow("ProcessCanny", self.current_patch)
-        cv2.createTrackbar("Low", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyLow"))
-        cv2.createTrackbar("High", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyHigh"))
-        cv2.setTrackbarPos("Low", "ProcessCanny", p["CannyLow"])
-        cv2.setTrackbarPos("High", "ProcessCanny", p["CannyHigh"])
+        cv2.createTrackbar("CannyLow", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyLow"))
+        cv2.createTrackbar("CannyHigh", "ProcessCanny", 0, 255, self.proc_canny_window_callback("CannyHigh"))
+        cv2.setTrackbarPos("CannyLow", "ProcessCanny", p["CannyLow"])
+        cv2.setTrackbarPos("CannyHigh", "ProcessCanny", p["CannyHigh"])
 
     def proc_canny_window_callback(self, param):
         def proc_callback_closure(val):
@@ -237,10 +241,10 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         p = self.tune_param
         cv2.namedWindow("ProcessThreshold", cv2.WINDOW_NORMAL)
         cv2.imshow("ProcessThreshold", self.current_patch)
-        cv2.createTrackbar("Low", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrLow"))
-        cv2.createTrackbar("High", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrHigh"))
-        cv2.setTrackbarPos("Low", "ProcessThreshold", p["ThrLow"])
-        cv2.setTrackbarPos("High", "ProcessThreshold", p["ThrHigh"])
+        cv2.createTrackbar("ThrLow", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrLow"))
+        cv2.createTrackbar("ThrHigh", "ProcessThreshold", 0, 255, self.proc_threshold_window_callback("ThrHigh"))
+        cv2.setTrackbarPos("ThrLow", "ProcessThreshold", p["ThrLow"])
+        cv2.setTrackbarPos("ThrHigh", "ProcessThreshold", p["ThrHigh"])
 
     def proc_threshold_window_callback(self, param):
         def proc_callback_closure(val):
@@ -256,25 +260,63 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
         p = self.tune_param
         cv2.namedWindow("ProcessAdaThreshold", cv2.WINDOW_NORMAL)
         cv2.imshow("ProcessAdaThreshold", self.current_patch)
-        cv2.createTrackbar("AdaThrMax", "ProcessAdaThreshold", 0, 255, self.proc_ada_threshold_window_callback("AdaThrMax"))
-        cv2.createTrackbar("AdaThrBlockSize", "ProcessAdaThreshold", 1, 100, self.proc_ada_threshold_window_callback("AdaThrBlockSize"))
+        cv2.createTrackbar("BlurKernSize", "ProcessAdaThreshold", 0, 200,
+                           self.proc_ada_threshold_window_callback("BlurKernSize"))
+        cv2.createTrackbar("AdaThrBlockSize", "ProcessAdaThreshold", 1, 200, self.proc_ada_threshold_window_callback("AdaThrBlockSize"))
         cv2.createTrackbar("AdaThrC", "ProcessAdaThreshold", 0, 255, self.proc_ada_threshold_window_callback("AdaThrC"))
-        cv2.setTrackbarPos("AdaThrMax", "ProcessAdaThreshold", p["AdaThrMax"])
+        cv2.createTrackbar("OpenKernSize", "ProcessAdaThreshold", 0, 200,
+                           self.proc_ada_threshold_window_callback("OpenKernSize"))
+        cv2.setTrackbarPos("BlurKernSize", "ProcessAdaThreshold", p["BlurKernSize"])
         cv2.setTrackbarPos("AdaThrBlockSize", "ProcessAdaThreshold", p["AdaThrBlockSize"])
         cv2.setTrackbarPos("AdaThrC", "ProcessAdaThreshold", p["AdaThrC"])
+        cv2.setTrackbarPos("OpenKernSize", "ProcessAdaThreshold", p["OpenKernSize"])
 
     def proc_ada_threshold_window_callback(self, param):
         def proc_callback_closure(val):
             p = self.tune_param
             p[param] = val
             img = cv2.cvtColor(self.current_patch.copy(), cv2.COLOR_RGB2GRAY)
+
+            if self.action0_Gaussian_blur.isChecked():
+                blr_size = p["BlurKernSize"] * 2 + 1
+                img = cv2.GaussianBlur(img, (blr_size, blr_size), 0)
+
             blk_size = p["AdaThrBlockSize"]*2+1
-            print(blk_size)
-            img = cv2.adaptiveThreshold(img, p["AdaThrMax"], cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,
+            img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY,
                                             blk_size, p["AdaThrC"])
+
+            # Do also morphological opening with a certain kernel size to remove texture noise
+            if self.action2_Morphological_opening.isChecked() and p["OpenKernSize"] > 0:
+                krn_size = p["OpenKernSize"] * 2 + 1
+
+                # Try different kernels. Square does not work well for our tasks
+                # kernel = np.ones((krn_size, krn_size), np.uint8)  # This is the original one
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (krn_size, krn_size))
+                img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+
             cv2.namedWindow("ProcessAdaThreshold", cv2.WINDOW_NORMAL)
             cv2.imshow("ProcessAdaThreshold", img)
         return proc_callback_closure
+
+    def proc_blob_detector(self):
+        cv2.namedWindow("ProcessBlobDetector", cv2.WINDOW_NORMAL)
+        # Detect blobs with default settings
+        img = cv2.cvtColor(self.current_patch.copy(), cv2.COLOR_RGB2GRAY)
+        detector = cv2.SimpleBlobDetector_create()
+        keypoints = detector.detect(img)
+        img2 = cv2.drawKeypoints(self.current_patch, keypoints, np.array([]),
+                                 (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("ProcessBlobDetector", img2)
+
+    # def proc_blob_detector_callback(self, param):
+    #     def proc_callback_closure(val):
+    #         p = self.tune_param
+    #         p[param] = val
+    #         img = cv2.Canny(self.current_patch.copy(), p["CannyLow"], p["CannyHigh"])
+    #         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    #         cv2.namedWindow("ProcessCanny", cv2.WINDOW_NORMAL)
+    #         cv2.imshow("ProcessCanny", img)
+    #     return proc_callback_closure
 
     # Combine two images in the most efficient way
     # (horizontally or vertically) so that they can
