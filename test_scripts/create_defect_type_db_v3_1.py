@@ -18,12 +18,14 @@ from annotmask import get_sqround_mask
 
 # In this version, narrower masks are used to check defect inclusion
 
+# Furthermore, it uses a different method for building the database
+
 # For simplification of polygons
 POLY_APPROX_TOLERANCE = 5
-DEFECT_DB_FILE = "defect_db_v3.pkl"
 
 # Make a narrower mask
 NARROW_MASK = True
+DEFECT_DB_FILE = "defect_db_v3.pkl"
 
 # This script is used to build a database of ALL defect types found on a particular road segment
 # It should be run on a particular machine that shall handle the task of defect type preprocessing for ML
