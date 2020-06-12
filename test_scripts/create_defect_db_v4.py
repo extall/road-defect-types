@@ -153,6 +153,8 @@ def get_paths_to_process(base_path, add_file=None):
     return {d: base_path + "/" + d + (("/" + add_file) if add_file else "") for d in dirs}
 
 
+# %% Initial database
+
 # Define the paths to process
 ortho_dir = r"C:\Data\_ReachU-defectTypes\201904_Origs"
 shp_dir = r"C:\Data\_ReachU-defectTypes\202004_Defect_types"
@@ -191,4 +193,42 @@ full_defect_db["origin"] = origins
 # Save the database
 datas = {"shapefile_dirs_root": shp_dir, "image_dirs_root": ortho_dir, "defect_db": full_defect_db}
 with open(os.path.join(ortho_dir, DEFECT_DB_FILE), "wb") as f:
+    pickle.dump(datas, f)
+
+################################################
+# %% Second database (later both will be merged)
+ortho_dir = r"C:\Data\_ReachU-defectTypes\__new_2020_06\origin_folders"
+
+# One shapefile for all... intersection will take a bit of time methinks
+shp_file_loc = r"C:\Data\_ReachU-defectTypes\__new_2020_06\AI_defect_types" + os.sep + shpf_name
+
+# Let's get going
+shp = gpd.read_file(shp_file_loc)
+gdf_list = []
+
+ortho_dirs = get_paths_to_process(ortho_dir)
+
+dir_cnt = 1
+dir_total = len(ortho_dirs)
+
+for k in ortho_dirs:
+    print("Processing folder", dir_cnt, "of", dir_total)
+    orthoshapes = process_vrt_folder(ortho_dirs[k], want_narrow=True)
+    ovrl = gpd.overlay(orthoshapes, shp, how='intersection').explode()
+    ovrl.replace(to_replace=[None], value=lbl_undefined, inplace=True)
+    gdf_list.append(ovrl)
+    dir_cnt += 1
+
+full_defect_db = join_gdf(gdf_list)
+
+# Add the origin column
+origins = []
+for i, k in full_defect_db.iterrows():
+    origins.append(k["fn"].split("-")[0])
+
+# Add the column
+full_defect_db["origin"] = origins
+
+datas = {"shapefile_dirs_root": "", "image_dirs_root": ortho_dir, "defect_db": full_defect_db}
+with open(os.path.join(ortho_dir, "NEW" + DEFECT_DB_FILE), "wb") as f:
     pickle.dump(datas, f)

@@ -40,7 +40,7 @@ from descartes import PolygonPatch
 # Overall constants
 PUBLISHER = "CentreForIntelligentSystems"
 APP_TITLE = "Defect Type Database Preview and Preprocess"
-APP_VERSION = "0.1-alpha"
+APP_VERSION = "0.2-alpha"
 
 # Some additional ones
 CONFIG_DIR_NAME = "configs"
@@ -484,12 +484,12 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
             return
 
         for i, entry in entries.iterrows():
-            if filt_def == "All" or (filt_def == entry["defect_type"] \
+            if filt_def == "All" or (filt_def == entry["type"] \
                                      and show_only_this) or not show_only_this:
                 db_entry["fn"] = fn  # Redundant, need TODO
                 db_entry["origin"] = entry["origin"] # something about this
                 db_entry["extent"] = entry["extent"]
-                defects.append((entry["defect_type"], entry["geometry"]))
+                defects.append((entry["type"], entry["geometry"]))
 
         db_entry["defects"] = defects
         return db_entry
@@ -599,19 +599,16 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         self.log("Loading the defect database...")
         with open(db_file, "rb") as f:
             my_db = pickle.load(f)
-        self.raw_db = my_db
-        self.log("Loaded database file from " + db_file)
 
-        self.log("Processing the database...")
-
-        # Create the dataframe
-        self.db = process_db.create_defect_geodataframe(self.raw_db)
+        # Breaking change in this version (0.2): we do not process the
+        # database anymore, but load it up directly (it comes preprocessed)
+        self.db = my_db
 
         # Statistics
-        unique_defects = self.db["defect_type"].unique().tolist()
+        unique_defects = self.db["type"].unique().tolist()
         stats = {}
         for deft in unique_defects:
-            stats[deft] = self.db[self.db["defect_type"] == deft].shape[0]
+            stats[deft] = self.db[self.db["type"] == deft].shape[0]
 
         # Store the statistics
         self.stats = stats
@@ -632,7 +629,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
         if self.db is not None:
 
             # Get all unique defects
-            unique_defects = self.db["defect_type"].unique().tolist()
+            unique_defects = self.db["type"].unique().tolist()
 
             # Get all unique directories
             unique_dirs = self.db["origin"].unique().tolist()
@@ -679,7 +676,7 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
             filter_cols["origin"] = filt_dir
 
         if filt_def != "All":
-            filter_cols["defect_type"] = filt_def
+            filter_cols["type"] = filt_def
 
         filt_db = self.db[np.logical_and.reduce([(self.db[k] == v) for k, v in filter_cols.items()])] \
             if filter_cols else self.db
