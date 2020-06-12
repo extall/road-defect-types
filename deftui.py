@@ -52,7 +52,10 @@ class DeftImgPreviewUI(QtWidgets.QMainWindow, deftui_imgpreview_ui.Ui_frmImagePr
 
     # Different data color scheme
     # Generated using https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=9
-    POLY_COLORS = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c', '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00', '#cab2d6']
+    POLY_COLORS = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
+                   '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00',
+                   '#cab2d6', # After this repeat the colors
+                   '#a6cee3', '#1f78b4', '#b2df8a', '#33a02c']
 
     label_color = None
 
@@ -596,13 +599,17 @@ class DeftUI(QtWidgets.QMainWindow, deftui_ui.Ui_mainWinDefectInfo):
 
         db_file = self.config_data["MenuOptions"]["DefectDbFile"]
 
-        self.log("Loading the defect database...")
-        with open(db_file, "rb") as f:
-            my_db = pickle.load(f)
+        try:
+            self.log("Loading the defect database...")
+            with open(db_file, "rb") as f:
+                my_db = pickle.load(f)
+        except:
+            self.log("Cannot find the file " + db_file)
+            return
 
         # Breaking change in this version (0.2): we do not process the
         # database anymore, but load it up directly (it comes preprocessed)
-        self.db = my_db
+        self.db = my_db["defect_db"]
 
         # Statistics
         unique_defects = self.db["type"].unique().tolist()
