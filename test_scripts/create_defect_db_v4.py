@@ -172,11 +172,23 @@ for k in ortho_dirs:
 
     # explode() at the end explodes multipolygons to polygons while duplicating entries
     # replace() replaces Type=None with "määramata"
-    ovrl = gpd.overlay(orthoshapes, shp, how='intersection') \
-        .explode() \
-        .replace(to_replace=[None], value=lbl_undefined, inplace=True)
+    ovrl = gpd.overlay(orthoshapes, shp, how='intersection').explode()
+    ovrl.replace(to_replace=[None], value=lbl_undefined, inplace=True)
 
     gdf_list.append(ovrl)
 
 # Finally, put it all together
 full_defect_db = join_gdf(gdf_list)
+
+# Add the origin column
+origins = []
+for i, k in full_defect_db.iterrows():
+    origins.append(k["fn"].split("-")[0])
+
+# Add the column
+full_defect_db["origin"] = origins
+
+# Save the database
+datas = {"shapefile_dirs_root": shp_dir, "image_dirs_root": ortho_dir, "defect_db": full_defect_db}
+with open(os.path.join(ortho_dir, DEFECT_DB_FILE), "wb") as f:
+    pickle.dump(datas, f)
