@@ -74,17 +74,6 @@ def get_mask_shape_polygon(mask, extent, want_narrow=False):
 
     return polygon_geom, polygon
 
-
-# Build the dir lists
-shpdirs = next(os.walk(dt_dirs_root))[1]
-imgdirs = next(os.walk(im_dirs_root))[1]
-
-# Check that every shapefile dir has the original images dir
-for d in shpdirs:
-    if d not in imgdirs:
-        raise Exception("An image dir corresponding to " + d + " not found.")
-
-
 # For counting values (remember, dict is passed by ref)
 def inc_dict(d, key, val=1):
     if key in d:
@@ -136,10 +125,58 @@ def process_vrt_folder(path, want_narrow=False):
     # Once all over, create and return the dataframe
     return gpd.GeoDataFrame(df, crs={'init': 'espg:3301'}, geometry=ortho_shapes)
 
-# Process VRT files
-p = r"C:\Data\_ReachU-defectTypes\201904_Origs\20190417_075700_LD5"
-p1 = r"C:\Data\_ReachU-defectTypes\202004_Defect_types\20190417_075700_LD5\defects_categorized.shp"
-orthoshapes = process_vrt_folder(p, want_narrow=True)
-shp = gpd.read_file(p1)
 
-ovrl = gpd.overlay(orthoshapes, shp, how='intersection')
+# Join N geopandas dataframes
+def join_gdf(gdf_list, ignore_index=True):
+    if not gdf_list:
+        # Return empty geodataframe
+        return gpd.GeoDataFrame()
+
+    # Take the CRS from the first entry and check all others
+    crs = gdf_list[0].crs
+
+    # Check all the merged dataframes so that the CRS is exactly the same everywhere
+    for gdf in gdf_list:
+        if gdf.crs != crs:
+            raise ValueError("Cannot join GeoDataFrames with different CRS")
+
+    # Finally, join the geodataframes resetting the index
+    return gpd.GeoDataFrame(pd.concat(gdf_list, ignore_index=ignore_index), crs=crs)
+
+
+# Get list of top level dirs to process, absolute paths with os.sep converted
+# to / since python understands it even in windows
+def get_paths_to_process(base_path, add_file=None):
+    base_path = base_path.replace("\\", "/")
+    base_path = base_path[:-1] if base_path.endswith("/") else base_path  # Typical sanitization
+    dirs = next(os.walk(base_path))[1]
+    return {d: base_path + "/" + d + (("/" + add_file) if add_file else "") for d in dirs}
+
+
+# Define the paths to process
+ortho_dir = r"C:\Data\_ReachU-defectTypes\201904_Origs"
+shp_dir = r"C:\Data\_ReachU-defectTypes\202004_Defect_types"
+
+ortho_dirs = get_paths_to_process(ortho_dir)
+shp_dirs = get_paths_to_process(shp_dir, shpf_name)
+
+# Check that all keys are there
+if set(ortho_dirs.keys()) != set(shp_dirs.keys()):
+    raise KeyError("Error in matching ortho/shapefile folders.")
+
+# Go through all folders and create the relevant GeoDataFrames
+gdf_list = []
+for k in ortho_dirs:
+    orthoshapes = process_vrt_folder(ortho_dirs[k], want_narrow=True)
+    shp = gpd.read_file(shp_dirs[k])
+
+    # explode() at the end explodes multipolygons to polygons while duplicating entries
+    # replace() replaces Type=None with "määramata"
+    ovrl = gpd.overlay(orthoshapes, shp, how='intersection') \
+        .explode() \
+        .replace(to_replace=[None], value=lbl_undefined, inplace=True)
+
+    gdf_list.append(ovrl)
+
+# Finally, put it all together
+full_defect_db = join_gdf(gdf_list)
